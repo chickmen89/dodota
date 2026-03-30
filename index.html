@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>레벨/티켓 계산기</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      padding: 20px;
+    }
+    .container {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+    }
+    section {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    h2 {
+      font-size: 1.1rem;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+    }
+    .info-row label {
+      font-weight: 500;
+      color: #555;
+    }
+    .info-row .value {
+      font-weight: 600;
+      font-size: 1.05rem;
+      min-width: 60px;
+      text-align: right;
+    }
+    select, input[type="number"] {
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    select:focus, input[type="number"]:focus {
+      outline: none;
+      border-color: #4a90d9;
+    }
+    input[type="number"] {
+      width: 80px;
+      text-align: right;
+    }
+    .level-select {
+      width: 100%;
+      font-size: 1.05rem;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+    }
+    .hobby-row {
+      display: flex;
+      align-items: center;
+      padding: 5px 0;
+      gap: 10px;
+    }
+    .hobby-row .hobby-name {
+      flex: 1;
+      font-weight: 500;
+    }
+    .hobby-row select {
+      width: 70px;
+    }
+    .hobby-row .hobby-cost {
+      width: 50px;
+      text-align: right;
+      font-size: 0.9rem;
+      color: #888;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 1.05rem;
+    }
+    .summary-row.highlight {
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+      margin-top: 4px;
+    }
+    .positive { color: #2e7d32; }
+    .negative { color: #c62828; }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .actions button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .actions button:hover { opacity: 0.85; }
+    .btn-save { background: #4a90d9; color: #fff; }
+    .btn-reset { background: #e0e0e0; color: #555; }
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #333;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>레벨 / 티켓 계산기</h1>
+
+    <section>
+      <h2>레벨 정보</h2>
+      <select id="levelSelect" class="level-select"></select>
+      <div class="info-row"><label>달성일차</label><span class="value" id="days"></span></div>
+      <div class="info-row"><label>획득티켓</label><span class="value" id="ticketGain"></span></div>
+      <div class="info-row"><label>누적티켓</label><span class="value" id="cumTickets"></span></div>
+      <div class="info-row"><label>도감티켓</label><span class="value" id="collTickets"></span></div>
+      <div class="info-row"><label>보정치</label><input type="number" id="correction" value="1"></div>
+      <div class="info-row" style="padding-top:10px;border-top:1px solid #eee;margin-top:6px;">
+        <label style="font-weight:700;">총 티켓</label>
+        <span class="value" id="totalTickets" style="font-size:1.15rem;"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>취미</h2>
+      <div id="hobbyContainer"></div>
+    </section>
+
+    <section>
+      <div class="summary-row"><span>총 사용 티켓</span><span id="usedTickets"></span></div>
+      <div class="summary-row highlight"><span>잔여 티켓</span><span id="remainingTickets"></span></div>
+      <div class="actions">
+        <button class="btn-save" id="saveBtn">저장</button>
+        <button class="btn-reset" id="resetBtn">초기화</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const DATA = {
+      xp:      [10,10,10,20,20,20,20,20,30,30,30,40,40,50,50,80,80,100,100,100,100,100,120,120,120,140,140,140,140,140,160,160,160,160,160,200],
+      tickets: [0,1,1,2,1,1,1,1,2,1,2,1,3,2,4,1,5,1,8,2,8,2,2,12,4,4,12,4,10,8,18,8,8,20,10,10],
+      COLLECTION: 35,
+      HOBBIES: ['원예','요리','낚시','곤충채집','새관찰','고양이','강아지'],
+      MAX_HOBBY: 10
+    };
+
+    // 사전 계산
+    const cumXP = [], cumTickets = [], days = [];
+    let sx = 0, st = 0;
+    for (let i = 0; i < DATA.xp.length; i++) {
+      sx += DATA.xp[i];
+      st += DATA.tickets[i];
+      cumXP.push(sx);
+      cumTickets.push(st);
+      days.push(Math.floor((sx - 1) / 50) + 1);
+    }
+
+    function hobbyCost(level) { return level * (level - 1) / 2; }
+
+    const defaultState = () => ({
+      level: 2,
+      correction: 1,
+      hobbies: Object.fromEntries(DATA.HOBBIES.map(h => [h, 1]))
+    });
+
+    let state = defaultState();
+
+    // DOM
+    const $ = id => document.getElementById(id);
+    const levelSelect = $('levelSelect');
+    const hobbyContainer = $('hobbyContainer');
+
+    // 레벨 드롭다운 생성
+    for (let lv = 2; lv <= 37; lv++) {
+      const opt = document.createElement('option');
+      opt.value = lv;
+      opt.textContent = `Lv. ${lv}`;
+      levelSelect.appendChild(opt);
+    }
+
+    // 취미 드롭다운 생성
+    DATA.HOBBIES.forEach(name => {
+      const row = document.createElement('div');
+      row.className = 'hobby-row';
+      row.innerHTML = `
+        <span class="hobby-name">${name}</span>
+        <select data-hobby="${name}"></select>
+        <span class="hobby-cost" data-hobby-cost="${name}"></span>
+      `;
+      const sel = row.querySelector('select');
+      for (let lv = 1; lv <= DATA.MAX_HOBBY; lv++) {
+        const opt = document.createElement('option');
+        opt.value = lv;
+        opt.textContent = lv;
+        sel.appendChild(opt);
+      }
+      sel.addEventListener('change', () => {
+        state.hobbies[name] = parseInt(sel.value);
+        render();
+      });
+      hobbyContainer.appendChild(row);
+    });
+
+    // 이벤트
+    levelSelect.addEventListener('change', () => {
+      state.level = parseInt(levelSelect.value);
+      render();
+    });
+    $('correction').addEventListener('input', e => {
+      state.correction = parseInt(e.target.value) || 0;
+      render();
+    });
+    $('saveBtn').addEventListener('click', () => {
+      localStorage.setItem('gameLevelCalcState', JSON.stringify(state));
+      showToast('저장되었습니다');
+    });
+    $('resetBtn').addEventListener('click', () => {
+      state = defaultState();
+      localStorage.removeItem('gameLevelCalcState');
+      $('correction').value = state.correction;
+      render();
+      showToast('초기화되었습니다');
+    });
+
+    function render() {
+      const i = state.level - 2;
+      levelSelect.value = state.level;
+
+      $('days').textContent = days[i] + '일';
+      $('ticketGain').textContent = DATA.tickets[i];
+      $('cumTickets').textContent = cumTickets[i];
+      $('collTickets').textContent = DATA.COLLECTION;
+
+      const total = cumTickets[i] + DATA.COLLECTION + state.correction;
+      $('totalTickets').textContent = total;
+
+      // 취미 비용 계산
+      let totalUsed = 0;
+      DATA.HOBBIES.forEach(name => {
+        totalUsed += hobbyCost(state.hobbies[name]);
+      });
+
+      const remaining = total - totalUsed;
+
+      // 취미 드롭다운 업데이트
+      DATA.HOBBIES.forEach(name => {
+        const sel = hobbyContainer.querySelector(`select[data-hobby="${name}"]`);
+        const costSpan = hobbyContainer.querySelector(`span[data-hobby-cost="${name}"]`);
+        sel.value = state.hobbies[name];
+        const currentCost = hobbyCost(state.hobbies[name]);
+        costSpan.textContent = currentCost > 0 ? `-${currentCost}` : '0';
+
+        // 옵션 비활성화
+        Array.from(sel.options).forEach(opt => {
+          const candidateLv = parseInt(opt.value);
+          const delta = hobbyCost(candidateLv) - currentCost;
+          opt.disabled = (remaining - delta < 0);
+        });
+      });
+
+      $('usedTickets').textContent = totalUsed;
+      const remEl = $('remainingTickets');
+      remEl.textContent = remaining;
+      remEl.className = remaining >= 0 ? 'positive' : 'negative';
+    }
+
+    function showToast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 1500);
+    }
+
+    // 불러오기
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('gameLevelCalcState'));
+        if (!saved) return;
+        if (saved.level >= 2 && saved.level <= 37) state.level = saved.level;
+        if (typeof saved.correction === 'number') state.correction = saved.correction;
+        if (saved.hobbies) {
+          DATA.HOBBIES.forEach(h => {
+            const v = saved.hobbies[h];
+            if (v >= 1 && v <= DATA.MAX_HOBBY) state.hobbies[h] = v;
+          });
+        }
+        $('correction').value = state.correction;
+      } catch(e) {}
+    }
+
+    loadState();
+    render();
+  </script>
+</body>
+</html>
