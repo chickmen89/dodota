@@ -50,19 +50,23 @@
       min-width: 60px;
       text-align: right;
     }
-    select, input[type="number"] {
+    select, input[type="number"], input[type="date"] {
       padding: 6px 10px;
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 0.95rem;
       background: #fff;
     }
-    select:focus, input[type="number"]:focus {
+    select:focus, input[type="number"]:focus, input[type="date"]:focus {
       outline: none;
       border-color: #4a90d9;
     }
     input[type="number"] {
       width: 80px;
+      text-align: right;
+    }
+    input[type="date"] {
+      width: 150px;
       text-align: right;
     }
     .level-select {
@@ -152,6 +156,8 @@
       <h2>레벨 정보</h2>
       <select id="levelSelect" class="level-select"></select>
       <div class="info-row"><label>달성일차</label><span class="value" id="days"></span></div>
+      <div class="info-row"><label>기준일</label><input type="date" id="startDate" value="2026-03-17"></div>
+      <div class="info-row"><label>달성예정일</label><span class="value" id="achieveDate"></span></div>
       <div class="info-row"><label>획득티켓</label><span class="value" id="ticketGain"></span></div>
       <div class="info-row"><label>누적티켓</label><span class="value" id="cumTickets"></span></div>
       <div class="info-row"><label>도감티켓</label><span class="value" id="collTickets"></span></div>
@@ -204,6 +210,7 @@
     const defaultState = () => ({
       level: 2,
       correction: 1,
+      startDate: '2026-03-17',
       hobbies: Object.fromEntries(DATA.HOBBIES.map(h => [h, 1]))
     });
 
@@ -254,6 +261,10 @@
       state.correction = parseInt(e.target.value) || 0;
       render();
     });
+    $('startDate').addEventListener('change', e => {
+      state.startDate = e.target.value;
+      render();
+    });
     $('saveBtn').addEventListener('click', () => {
       localStorage.setItem('gameLevelCalcState', JSON.stringify(state));
       showToast('저장되었습니다');
@@ -262,6 +273,7 @@
       state = defaultState();
       localStorage.removeItem('gameLevelCalcState');
       $('correction').value = state.correction;
+      $('startDate').value = state.startDate;
       render();
       showToast('초기화되었습니다');
     });
@@ -271,6 +283,14 @@
       levelSelect.value = state.level;
 
       $('days').textContent = days[i] + '일';
+      $('startDate').value = state.startDate;
+      const base = new Date(state.startDate);
+      const achieve = new Date(base);
+      achieve.setDate(base.getDate() + days[i] - 1);
+      const yyyy = achieve.getFullYear();
+      const mm = String(achieve.getMonth() + 1).padStart(2, '0');
+      const dd = String(achieve.getDate()).padStart(2, '0');
+      $('achieveDate').textContent = `${yyyy}-${mm}-${dd}`;
       $('ticketGain').textContent = DATA.tickets[i];
       $('cumTickets').textContent = cumTickets[i];
       $('collTickets').textContent = DATA.COLLECTION;
@@ -322,6 +342,7 @@
         if (!saved) return;
         if (saved.level >= 2 && saved.level <= 37) state.level = saved.level;
         if (typeof saved.correction === 'number') state.correction = saved.correction;
+        if (saved.startDate) state.startDate = saved.startDate;
         if (saved.hobbies) {
           DATA.HOBBIES.forEach(h => {
             const v = saved.hobbies[h];
@@ -329,6 +350,7 @@
           });
         }
         $('correction').value = state.correction;
+        $('startDate').value = state.startDate;
       } catch(e) {}
     }
 
